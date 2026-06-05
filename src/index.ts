@@ -1,55 +1,65 @@
-"use strict";
-
-class VNClass {
+;"use strict";
+type VNClassSource = VNClass | number | string;
+type CompareResult = -1 | 0 | 1;
+abstract class VNClass {
 	/**
 	 * Set the type of this instance
-	 * @param type - The type to set to
+	 * @param type - The type to set `this` to
 	 */
-	setType(type) {
+	setType<P extends object | null>(type: {prototype: P}): asserts this is P {
 		Object.setPrototypeOf(this, type.prototype);
 	}
 
 	static MAX_TERMS = 200;
 
-	static clone(input) {
-		if (input instanceof VNClass) return input.clone();
-		if (input instanceof Array) {
-			let c = [];
-			for (let i in input) {
-				if (i == "clone") continue;
-				c[i] =
-					input[i] instanceof Object
-						? VNClass.clone(input[i])
-						: input[i];
-			}
-			return c;
-		}
-		if (input instanceof Object) {
-			let c = {};
-			for (let i in input) {
-				if (i == "clone") continue;
-				c[i] =
-					input[i] instanceof Object
-						? VNClass.clone(input[i])
-						: input[i];
-			}
-			return c;
-		}
-	}
+	standardize(){
 
-	clone() {
-		let obj = new CloneTemplate();
+	};
+
+	static clone(input: unknown): any {
+		if (input===null || typeof input!=='object') return input;
+		if (input instanceof VNClass) return input.clone();
+		if (Array.isArray(input)) {
+			let c: unknown[] = [];
+			for (let i=0;i<input.length;i++) {
+				if(input[i]!==null&&typeof input[i]==='object') c.push(VNClass.clone(input[i]));
+				else c.push(input[i]);
+			}
+			return c;
+		}
+
+		let c = Object.create(Object.getPrototypeOf(input)) as typeof input;
+		for (let i in input) { 
+			//if (i == "clone") continue;
+			//@ts-ignore input[i]
+			c[i] = typeof input[i]==='object' && input!==null ? VNClass.clone(input[i]) : input[i];
+		}
+		return c;
+
+	}
+	clone<T extends VNClass>(this: T): T {
+		// Making TS happy; obj.[[Prototype]] will eventually be a subtype of VNClass.
+		let obj: VNClass = {} as VNClass;
 		for (let i in this) {
-			if (this[i] instanceof Object) obj[i] = VNClass.clone(this[i]);
+			//@ts-ignore
+			if (this[i]!==null&&typeof this[i] === 'object') obj[i] = VNClass.clone(this[i]);
+			//@ts-ignore
 			else obj[i] = this[i];
 		}
-		obj.setType(this.__proto__.constructor);
-		if (!obj instanceof Atom) obj.standardize();
+		//VNClass.prototype.setType<T>.bind(obj)(this.constructor);
+
+		obj.setType<T>(this.constructor);
+
+		if (!(obj instanceof Atom)) obj.standardize();
 		return obj;
 	}
 
-	add(other) {
-		return new Sum(this, other);
+	add(other: number | VNClass): VNClass {
+		if (!(other instanceof VNClass)) {
+			if (typeof other == "number") other = new Atom(other);
+			else other = new VebleNum(other);
+		}
+		return sumVN(this,other);
 	}
 
 	isEpsilon() {
@@ -76,18 +86,15 @@ class VNClass {
 		return this instanceof Phi && this.args.length >= 3;
 	}
 
-	static add(a, b) {
+	static add(a: number | VNClass, b: number | VNClass) {
 		if (!(a instanceof VNClass)) {
 			if (typeof a == "number") a = new Atom(a);
 			else a = new VebleNum(a);
 		}
-		if (!(b instanceof VNClass)) {
-			if (typeof b == "number") b = new Atom(b);
-			else b = new VebleNum(b);
-		}
 		return a.add(b);
 	}
-	static mul(a, b) {
+	abstract mul(other: VNClassSource): VNClass;
+	static mul(a: number | VNClass, b: number | VNClass) {
 		if (!(a instanceof VNClass)) {
 			if (typeof a == "number") a = new Atom(a);
 			else a = new VebleNum(a);
@@ -98,7 +105,8 @@ class VNClass {
 		}
 		return a.mul(b);
 	}
-	static pow(a, b) {
+	abstract pow(other: VNClassSource): VNClass;
+	static pow(a: number | VNClass, b: number | VNClass) {
 		if (!(a instanceof VNClass)) {
 			if (typeof a == "number") a = new Atom(a);
 			else a = new VebleNum(a);
@@ -109,8 +117,8 @@ class VNClass {
 		}
 		return a.pow(b);
 	}
-
-	static cmp(a, b) {
+	abstract cmp(other: VNClassSource): CompareResult;
+	static cmp(a: number | VNClass, b: number | VNClass) {
 		if (!(a instanceof VNClass)) {
 			if (typeof a == "number") a = new Atom(a);
 			else a = new VebleNum(a);
@@ -118,28 +126,28 @@ class VNClass {
 		return a.cmp(b);
 	}
 
-	static epsilon(n) {
+	static epsilon(n: VNClassSource) {
 		if (!(n instanceof VNClass)) {
 			if (typeof n == "number") n = new Atom(n);
 			else n = new VebleNum(n);
 		}
 		return new Phi(1, n);
 	}
-	static zeta(n) {
+	static zeta(n: VNClassSource) {
 		if (!(n instanceof VNClass)) {
 			if (typeof n == "number") n = new Atom(n);
 			else n = new VebleNum(n);
 		}
 		return new Phi(2, n);
 	}
-	static eta(n) {
+	static eta(n: VNClassSource) {
 		if (!(n instanceof VNClass)) {
 			if (typeof n == "number") n = new Atom(n);
 			else n = new VebleNum(n);
 		}
 		return new Phi(3, n);
 	}
-	static Gamma(n) {
+	static Gamma(n: VNClassSource) {
 		if (!(n instanceof VNClass)) {
 			if (typeof n == "number") n = new Atom(n);
 			else n = new VebleNum(n);
@@ -147,47 +155,181 @@ class VNClass {
 		return new Phi(1, 0, n);
 	}
 
-	gt(other) {
-		return this.cmp(other) == 1;
+	gt(other: VNClassSource) {
+		return this.cmp(other) === 1;
 	}
-	lt(other) {
-		return this.cmp(other) == -1;
+	lt(other: VNClassSource) {
+		return this.cmp(other) === -1;
 	}
-	gte(other) {
+	gte(other: VNClassSource) {
 		return this.cmp(other) > -1;
 	}
-	lte(other) {
+	lte(other: VNClassSource) {
 		return this.cmp(other) > 1;
 	}
-	eq(other) {
-		return this.cmp(other) == 0;
+	eq(other: VNClassSource) {
+		return this.cmp(other) === 0;
 	}
-	neq(other) {
+	neq(other: VNClassSource) {
 		return this.cmp(other) !== 0;
 	}
 }
 
-class CloneTemplate extends VNClass {}
+//class CloneTemplate extends VNClass {}
 
+function sumVN(...addends: (number|VNClass)[]): VNClass{
+	const work1Arr: (VNClass | number | (VNClass | number)[])[] = [];
+	for (let addend of addends) {
+		if (
+			addend instanceof VNClass &&
+			!(addend instanceof Atom)
+		)
+			addend.standardize();
+		// Flatten sums into the array
+		if (addend instanceof Sum) {
+			work1Arr.push(addend.addends);
+		}
+		// Turn Atoms into numbers
+		if (addend instanceof Atom)
+			work1Arr.push(addend.value);
+	}
+	const work2Arr: (number | VNClass)[] = work1Arr.flat();
+
+	// Merge final numbers
+	while (
+		work2Arr.length >= 2 &&
+		typeof work2Arr[work2Arr.length - 1] == "number" &&
+		typeof work2Arr[work2Arr.length - 2] == "number"
+	){
+		//@ts-ignore
+		work2Arr[work2Arr.length - 2] += work2Arr.pop();
+	}
+
+	// Convert to an Atom when necessary
+	if (work2Arr.length == 1 && typeof work2Arr[0] == "number") {
+		return new Atom(work2Arr[0]);
+	}
+	const work3Arr: (number | VNClass | null)[] = [...work2Arr];
+	// Remove redundant terms
+	for (let i = 0; i < work3Arr.length - 1; i++) {
+		const curr=work3Arr[i];
+		if(curr===null) continue;
+		//finite ordinal + transfinite ordinal -> the same transfinite ordinal
+		if(typeof curr==='number'){work3Arr[i]=null;continue}
+		//null is only used as padding for removed elements during this current, so next wont be null.
+		const next = work3Arr[i+1]!;
+		if (curr.cmp(next) == -1) {
+			if (curr instanceof Product) {
+				if (next instanceof Product) {
+					if (
+						curr.ord.cmp(next.ord) ===
+						0
+					)
+						continue;
+					work3Arr[i]=null;
+					continue;
+				}
+				if (curr.ord.cmp(next) === 0)
+					continue;
+				work3Arr[i]=null;
+				continue;
+			}
+			if (next instanceof Product) {
+				if (curr.cmp(next.ord) === 0)
+					continue;
+				work3Arr[i]=null;
+				continue;
+			}
+			if (curr.cmp(next) === 0) continue;
+			work3Arr[i]=null;
+			continue;
+		}
+	}
+	const work4Arr: (number|VNClass|null)[] = work3Arr.filter((v)=>v!==null)
+
+	// Collect like terms
+	for (let i = 0; i < work4Arr.length - 1; i++) {
+		const curr=work4Arr[i] as VNClass | null;
+		if(curr===null) continue;
+		//same reason for non-null as above.
+		const next = work4Arr[i+1]!;
+		// If they're equal just merge into a Product
+		if (next instanceof VNClass && curr.cmp(next) === 0) {
+			work4Arr[i + 1] = new Product(next, 2);
+			work4Arr[i]=null;
+			continue;
+		}
+		// If the current one is a Product...
+		if (curr instanceof Product) {
+			// ...and the next one is a Product...
+			if (next instanceof Product) {
+				// ...if they're Products of the same ordinal then merge
+				if (curr.ord.cmp(next.ord) === 0) {
+					work4Arr[i + 1] = new Product(
+						next.ord,
+						curr.mult + next.mult
+					);
+					work4Arr[i]=null;
+				}
+				continue;
+			}
+			// ...and the next one is not but they are like terms then merge
+			if (next instanceof VNClass && curr.ord.cmp(next) === 0) {
+				work4Arr[i + 1] = new Product(
+					next,
+					curr.mult + 1
+				);
+				work4Arr[i]=null;
+			}
+			continue;
+		}
+		// If the current one isn't a Product...
+		if (next instanceof Product) {
+			// ...if they're like terms then merge
+			if (curr.cmp(next.ord) === 0) {
+				work4Arr[i + 1] = new Product(
+					next.ord,
+					1 + next.mult
+				);
+				work4Arr[i]=null;
+			}
+		}
+	}
+	const work5Arr: (number | VNClass)[] = work4Arr.filter((v)=>v!==null);
+	// Remove outer Sum to simplify single term
+	if (work5Arr.length === 1) {
+		//the number case is handled above
+		return work5Arr[0] as VNClass;
+	}
+	return new Sum(...(work5Arr as ((number|Product|Phi)[])&{0:Product|Phi}));
+}
 class Atom extends VNClass {
+	value: number;
 	/**
 	 * Class to handle storing independent numbers
 	 * @param {Number} value - The value of the atom
 	 */
-	constructor(value) {
+	constructor(value: Atom | number) {
 		super();
-		this.value = value.value !== undefined ? value.value : value;
-	}
 
-	add(other) {
+		this.value = typeof value==='number' ? value : value.value;
+	}
+	standardize(): void {}
+	static wrapIfNumber(v: number | VNClass){
+		return typeof v==='number' ? new Atom(v) : v;
+	}
+	static unwrap(a: Atom|number): number{
+		return typeof a==='number' ? a : a.value;
+	}
+	add(other: VNClassSource): VNClass {
 		if (typeof other == "string") other = Parser.fromString(other);
 		if (typeof other == "number") return new Atom(this.value + other);
 		if (other instanceof Atom) return new Atom(this.value + other.value);
 		return other;
 	}
 
-	mul(other) {
-		if (typeof other == "string") other = Parser.fromString(other);
+	mul(other: VNClassSource): VNClass {
+		if (typeof other === "string") other = Parser.fromString(other);
 		if (typeof other == "number") return new Atom(this.value * other);
 		if (other instanceof Atom) return new Atom(this.value * other.value);
 		if (this.value == 1) return other.clone();
@@ -195,35 +337,37 @@ class Atom extends VNClass {
 		return other.clone();
 	}
 
-	pow(other) {
+	pow(other: VNClassSource): VNClass {
 		if (typeof other == "string") other = Parser.fromString(other);
 		if (other instanceof Sum) {
-			let p = new Atom(1);
+			let p: VNClass = new Atom(1);
 			for (let i of other.addends) p = p.mul(this.pow(i));
 			return p;
 		}
 		if (other instanceof Product)
 			return this.pow(other.ord).pow(other.mult);
+		//other is ω^α (α>1)
 		if (
 			other instanceof Phi &&
 			other.args.length == 1 &&
 			new Atom(1).cmp(other.args[0]) == -1
 		) {
+			//if ω<=α (other>=ω^ω)
 			if (new Phi(1).cmp(other.args[0]) < 1)
 				return new Phi(other.clone());
+			//if 1<α<ω: then α is number or Atom
 			let o = other.clone();
-			if (o.args[0] instanceof Atom) o.args[0] = o.args[0].value;
-			o.args[0]--;
+			o.args[0] =  Atom.unwrap(o.args[0] as number | Atom) - 1;
 			return new Phi(o);
 		}
-		if (typeof other == "number") return new Atom(this.value ** other);
+		if (typeof other === "number") return new Atom(this.value ** other);
 		if (other instanceof Atom) return new Atom(this.value ** other.value);
-		if (this.value == 1) return new Atom(1);
-		if (this.value == 0) return new Atom(0);
+		if (this.value === 1) return new Atom(1);
+		if (this.value === 0) return new Atom(0);
 		return other.clone();
 	}
 
-	cmp(other) {
+	cmp(other: VNClassSource): CompareResult {
 		if (typeof other == "string") other = Parser.fromString(other);
 		if (typeof other == "number")
 			return this.value > other ? 1 : this.value < other ? -1 : 0;
@@ -248,146 +392,31 @@ class Atom extends VNClass {
 }
 
 class Sum extends VNClass {
+	addends: (number|Product|Phi)[] & {0?: Product|Phi}
 	/**
-	 * Class to handle sums of terms, terms are either Product or Phi
-	 * @param {...Product|Phi}
+	 * Class to handle sums of terms, terms are either number or Product or Phi
 	 */
-	constructor() {
+	constructor(...args: (number|Product|Phi)[] & {0?: Product|Phi}) {
 		super();
-		this.addends = [...arguments];
+		this.addends = args;
 
 		this.standardize();
 	}
 
 	standardize() {
-		for (let i in this.addends) {
-			if (
-				this.addends[i] instanceof VNClass &&
-				!(this.addends[i] instanceof Atom)
-			)
-				this.addends[i].standardize();
-			// Flatten sums into the array
-			if (this.addends[i] instanceof Sum) {
-				this.addends[i] = this.addends[i].addends;
-				this.addends = this.addends.flat();
-			}
-			// Turn Atoms into numbers
-			if (this.addends[i] instanceof Atom)
-				this.addends[i] = this.addends[i].value;
-		}
-
-		// Merge final numbers
-		while (
-			this.terms >= 2 &&
-			typeof this.addends[this.terms - 1] == "number" &&
-			typeof this.addends[this.terms - 2] == "number"
-		)
-			this.addends[this.terms - 2] += this.addends.pop();
-
-		// Convert to an Atom when necessary
-		if (this.addends.length == 1 && typeof this.addends[0] == "number") {
-			this.value = this.addends[0];
-			delete this.addends;
-			this.setType(Atom);
-		}
-
-		// Remove redundant terms
-		for (let i = 0; i < this.terms - 1; i++) {
-			if (typeof this.addends[i] == "number") {
-				this.addends.splice(i--, 1);
-				continue;
-			}
-			if (this.addends[i].cmp(this.addends[i + 1]) == -1) {
-				if (this.addends[i] instanceof Product) {
-					if (this.addends[i + 1] instanceof Product) {
-						if (
-							this.addends[i].ord.cmp(this.addends[i + 1].ord) ==
-							0
-						)
-							continue;
-						this.addends.splice(i--, 1);
-						continue;
-					}
-					if (this.addends[i].ord.cmp(this.addends[i + 1]) == 0)
-						continue;
-					this.addends.splice(i--, 1);
-					continue;
-				}
-				if (this.addends[i + 1] instanceof Product) {
-					if (this.addends[i].cmp(this.addends[i + 1].ord) == 0)
-						continue;
-					this.addends.splice(i--, 1);
-					continue;
-				}
-				if (this.addends[i].cmp(this.addends[i + 1]) == 0) continue;
-				this.addends.splice(i--, 1);
-				continue;
-			}
-		}
-
-		// Collect like terms
-		for (let i = 0; i < this.terms - 1; i++) {
-			// If they're equal just merge into a Product
-			if (this.addends[i].cmp(this.addends[i + 1]) == 0) {
-				this.addends[i + 1] = new Product(this.addends[i + 1], 2);
-				this.addends.splice(i--, 1);
-				continue;
-			}
-			// If the current one is a Product...
-			if (this.addends[i] instanceof Product) {
-				// ...and the next one is a Product...
-				if (this.addends[i + 1] instanceof Product) {
-					// ...if they're Products of the same ordinal then merge
-					if (this.addends[i].ord.cmp(this.addends[i + 1].ord) == 0) {
-						this.addends[i + 1] = new Product(
-							this.addends[i + 1].ord,
-							this.addends[i].mult + this.addends[i + 1].mult
-						);
-						this.addends.splice(i--, 1);
-					}
-					continue;
-				}
-				// ...and the next one is not but they are like terms then merge
-				if (this.addends[i].ord.cmp(this.addends[i + 1]) == 0) {
-					this.addends[i + 1] = new Product(
-						this.addends[i + 1],
-						this.addends[i].mult + 1
-					);
-					this.addends.splice(i--, 1);
-				}
-				continue;
-			}
-			// If the current one isn't a Product...
-			if (this.addends[i + 1] instanceof Product) {
-				// ...if they're like terms then merge
-				if (this.addends[i].cmp(this.addends[i + 1].ord) == 0) {
-					this.addends[i + 1] = new Product(
-						this.addends[i + 1].ord,
-						1 + this.addends[i + 1].mult
-					);
-					this.addends.splice(i--, 1);
-				}
-			}
-		}
-
-		// Remove outer Sum to simplify single term
-		if (this.terms == 1) {
-			let e = this.addends[0];
-			delete this.addends;
-			for (let i in e) this[i] = e[i];
-			this.setType(e.__proto__.constructor);
-		}
 	}
 
-	cmp(other) {
-		if (typeof other == "string") other = Parser.fromString(other);
+	cmp(other: VNClassSource): CompareResult {
+		if (typeof other === "string") other = Parser.fromString(other);
 		// Standard Sums are always greater than Atoms
-		if (typeof other == "number" || other instanceof Atom) return 1;
+		if (typeof other === "number" || other instanceof Atom) return 1;
 
 		// If other > first term then -1, if other == first term then 1, or other < first term then 1
-		if (other instanceof Product || other instanceof Phi)
-			return this.addends[0].cmp(other) == -1 ? -1 : 1;
-
+		if (other instanceof Product || other instanceof Phi){
+			//the first term of Sum is never number; number becomes Atom.
+			return (this.addends[0]!).cmp(other) === -1 ? -1 : 1;
+		}
+		if(!(other instanceof Sum)) throw TypeError(`Invalid Sum.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 		// Compare with other terms
 		for (let i = 0; i < Math.min(this.terms, other.terms); i++) {
 			if (typeof this.addends[i] == "number") {
@@ -400,7 +429,8 @@ class Sum extends VNClass {
 				return -1;
 			}
 			if (typeof other.addends[i] == "number") return 1;
-			let c = this.addends[i].cmp(other.addends[i]);
+			//ok typescript, there is a type guard for number right above.
+			let c = (this.addends[i] as Exclude<typeof this.addends[number],number>).cmp(other.addends[i]);
 			if (c !== 0) return c;
 		}
 		if (this.terms > other.terms) return 1;
@@ -408,17 +438,16 @@ class Sum extends VNClass {
 		return 0;
 	}
 
-	mul(other) {
+	mul(other: VNClassSource): VNClass {
 		if (typeof other == "string") other = Parser.fromString(other);
-		if (other == 1 || other.value == 1) return this.clone();
-		if (other == 0 || other.value == 0) return new Atom(0);
+		if (other === 1 || (other instanceof Atom && other.value === 1)) return this.clone();
+		if (other === 0 || (other instanceof Atom && other.value === 0)) return new Atom(0);
 		if (typeof other == "number") other = new Atom(other);
 		if (other instanceof Sum)
-			return new Sum(...other.addends.map(e => this.mul(e)));
-		if (!(other instanceof Atom)) return this.addends[0].mul(other);
-		let t = this.addends[0];
-		if (typeof t == "number") t = new Atom(t);
-		return new Sum(t.mul(other), ...this.addends.slice(1));
+			return sumVN(...other.addends.map(e => this.mul(e)));
+		let t = this.addends[0]!;
+		if (!(other instanceof Atom)) return t.mul(other);
+		return sumVN(Atom.wrapIfNumber(t).mul(other), ...this.addends.slice(1));
 	}
 
 	pow(other) {
@@ -441,7 +470,7 @@ class Sum extends VNClass {
 			return t;
 		}
 		let t = this.addends[0];
-		if (typeof t == "number") t = new Atom(t);
+		if (typeof t == "number") return new Atom(t).pow(other);
 		return t.pow(other);
 	}
 
@@ -456,7 +485,7 @@ class Sum extends VNClass {
 	toMixed() {
 		return this.addends
 			.map(e => {
-				if (typeof e == "number") e = new Atom(e);
+				if (typeof e == "number") return new Atom(e).toMixed();
 				return e.toMixed();
 			})
 			.join("+");
@@ -464,7 +493,7 @@ class Sum extends VNClass {
 	toHTML() {
 		return this.addends
 			.map(e => {
-				if (typeof e == "number") e = new Atom(e);
+				if (typeof e == "number") return new Atom(e).toHTML();
 				return e.toHTML();
 			})
 			.join("+");
@@ -476,12 +505,14 @@ class Sum extends VNClass {
 }
 
 class Product extends VNClass {
+	ord: Phi;
+	mult: number;
 	/**
 	 * Class to handle products of an ordinal and a finite value
 	 * @param {Phi} ord - Ordinal being multiplied
 	 * @param {Number} mult - Finite multiplier
 	 */
-	constructor(ord, mult) {
+	constructor(ord: Phi, mult: number) {
 		super();
 		this.ord = ord;
 		this.mult = mult;
@@ -587,22 +618,25 @@ class Product extends VNClass {
 		);
 	}
 }
+function phiVN(){
 
+}
 class Phi extends VNClass {
+	args: (number|Atom|Sum|Product|Phi)[];
 	/**
 	 * Class to handle sums of terms, terms are either Sum, Product or Phi
 	 * @param {...Sum|Product|Phi}
 	 */
-	constructor() {
+	constructor(...args: (number|Atom|Sum|Product|Phi)[]) {
 		super();
-		this.args = [...arguments];
+		this.args = args;
 
 		this.standardize();
 	}
 
-	static noStandard() {
+	static noStandard(...args: (number|Atom|Sum|Product|Phi)[]) {
 		let t = new Phi();
-		t.args = [...arguments];
+		t.args = args;
 		t.standardize(true);
 		return t;
 	}
@@ -618,9 +652,9 @@ class Phi extends VNClass {
 
 			// Convert phi(0) to 1
 			if (this.args[0] == 0) {
+				this.setType(Atom);
 				this.value = 1;
 				delete this.args;
-				this.setType(Atom);
 			}
 
 			// Deal with fixed points
@@ -640,7 +674,7 @@ class Phi extends VNClass {
 		}
 	}
 
-	cmp(other) {
+	cmp(other: VNClassSource) {
 		if (typeof other == "string") other = Parser.fromString(other);
 		// Standard Phis are always greater than Atoms
 		if (typeof other == "number" || other instanceof Atom) return 1;
@@ -1006,7 +1040,7 @@ class Parser {
 		return str;
 	}
 
-	static fromString(str) {
+	static fromString(str: string): VNClass {
 		str = Parser.fixUnary(str);
 		let tokens = Parser.tokenize(str);
 		let rpn = Parser.parse(tokens);

@@ -1,0 +1,25 @@
+{
+  "name": "veblenum",
+  "version": "0.0.0",
+  "description": "A javascript library for handling ordinals < psi(Ω^Ω^ω)",
+  "homepage": "https://github.com/crimson-planks/VebleNum#readme",
+  "bugs": {
+    "url": "https://github.com/crimson-planks/VebleNum/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crimson-planks/VebleNum.git"
+  },
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.60.1"
+  }
+}
