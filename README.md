@@ -1,2 +1,2 @@
-# VebleNum.js
+# VebleNum-ts
 A javascript library for handling ordinals &lt; psi(&Omega;^&Omega;^&omega;)

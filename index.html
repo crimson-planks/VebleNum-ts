@@ -1,17 +1,14 @@
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>VebleNum.js</title>
-		<script src="VebleNum.js"></script>
-		<script>
-			function solve() {
-				let x = document.getElementById("exp").value;
-				document.getElementById("out").innerHTML = O(x).toHTML();
-			}
-		</script>
+		<title>VebleNum-ts</title>
+		<script src="built/index.js" type="module"></script>
+		<script src="s.js" type="module"></script>
 	</head>
 	<body>
+		<h1>VebleNum-ts</h1>
 		Expression: <input id="exp" /><br />
 		<button onclick="solve()">Solve!</button><br />
 		<span id="out"></span>
