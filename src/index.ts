@@ -33,26 +33,25 @@ abstract class VNClass {
 
 	static MAX_TERMS = 200;
 	
-	abstract standardize(): void;
+	abstract toStandardized(): ConcreteVN;
 
 	clone<T extends VNClass>(this: T): T {
 		// Making TS happy; obj.[[Prototype]] will eventually be a subtype of VNClass
-		const obj: T = {} as T;
+		const obj = {} as T;
 		for (const i in this) {
 			if (this[i]!==null&&typeof this[i] === 'object') obj[i] = VebleNum.clone(this[i]);
 			else obj[i] = this[i];
 		}
 		//VNClass.prototype.setType<T>.call(obj,this.constructor);
 
-		setType(obj,this.constructor);
+		setType<T>(obj,this.constructor);
 
-		if (!(obj instanceof Atom)) obj.standardize();
 		return obj;
 	}
 
 	add(other: number | ConcreteVN): ConcreteVN {
 		if (!(other instanceof VNClass)) other = VebleNum(other);
-		if(!isConcreteVN(this)) throw Error("")
+		if(!isConcreteVN(this)) throw TypeError("")
 		return sumVN(this,other);
 	}
 	abstract mul(other: ConcreteVNSource): ConcreteVN;
@@ -128,12 +127,8 @@ type ConcreteVNSource = ConcreteVN | number | string;
 */
 function sumVN(...addends: (number|ConcreteVN)[]): ConcreteVN{
 	const work1Arr: (ConcreteVN | number | (ConcreteVN | number)[])[] = [];
-	for (const addend of addends) {
-		if (
-			isConcreteVN(addend) &&
-			!(addend instanceof Atom)
-		)
-			addend.standardize();
+	for (let addend of addends) {
+		if (isConcreteVN(addend)) addend = addend.toStandardized();
 		// Flatten sums into the array
 		if (addend instanceof Sum) {
 			work1Arr.push(addend.addends);
@@ -154,7 +149,7 @@ function sumVN(...addends: (number|ConcreteVN)[]): ConcreteVN{
 		typeof work2Arr[work2Arr.length - 1] === "number" &&
 		typeof work2Arr[work2Arr.length - 2] === "number"
 	){
-		//@ts-expect-error while condition
+		//@ts-expect-error see while condition
 		work2Arr[work2Arr.length - 2] += work2Arr.pop()!;
 	}
 
@@ -263,7 +258,7 @@ function sumVN(...addends: (number|ConcreteVN)[]): ConcreteVN{
 	return new Sum(...work5Arr);
 }
 
-class Atom<V extends number> extends VNClass {
+export class Atom<V extends number> extends VNClass {
 	value: V;
 	/**
 	 * Class to handle storing independent numbers
@@ -274,7 +269,9 @@ class Atom<V extends number> extends VNClass {
 
 		this.value = typeof value==='number' ? value : value.value;
 	}
-	standardize(): void {}
+	toStandardized(): Atom<number> {
+		return this.clone();
+	}
 	static wrapIfNumber<T extends ConcreteVN>(v: number | T){
 		return typeof v==='number' ? new Atom(v) : v;
 	}
@@ -351,7 +348,7 @@ class Atom<V extends number> extends VNClass {
 	}
 }
 
-class Sum extends VNClass {
+export class Sum extends VNClass {
 	addends: (number|Product|Phi)[] & {0: Product|Phi}
 	/**
 	 * Class to handle sums of terms, terms are either number or Product or Phi
@@ -359,11 +356,10 @@ class Sum extends VNClass {
 	constructor(...args: (number|Product|Phi)[] & {0: Product|Phi}) {
 		super();
 		this.addends = args;
-
-		this.standardize();
 	}
 
-	standardize() {
+	toStandardized(): ConcreteVN {
+		return sumVN(...this.addends);
 	}
 
 	cmp(other: ConcreteVNSource): CompareResult {
@@ -376,7 +372,7 @@ class Sum extends VNClass {
 			//the first term of Sum is never number; number becomes Atom.
 			return (this.addends[0]!).cmp(other) === -1 ? -1 : 1;
 		}
-		if(!(other instanceof Sum)) throw TypeError(`Invalid Sum.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
+		if(!(other instanceof Sum)) throw TypeError(`Invalid Sum.prototype.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 		// Compare with other terms
 		for (let i = 0; i < Math.min(this.terms, other.terms); i++) {
 			if (typeof this.addends[i] === "number") {
@@ -490,7 +486,7 @@ function productVN(ord: number | Atom<number> | Product| Phi, mult: number | Ato
 	//if(!(ord instanceof Phi)) throw new TypeError(`Invalid mulVN argument(ord): ${ord} ([[prototype]]: ${Object.getPrototypeOf(ord)})`);;
 	return new Product(ord,mult);
 }
-class Product extends VNClass {
+export class Product extends VNClass {
 	ord: Phi;
 	mult: number;
 	/**
@@ -502,11 +498,10 @@ class Product extends VNClass {
 		super();
 		this.ord = ord;
 		this.mult = mult;
-
-		this.standardize();
 	}
 
-	standardize() {
+	toStandardized(): ConcreteVN {
+		return productVN(this.ord,this.mult);
 	}
 
 	cmp(other: ConcreteVNSource): CompareResult {
@@ -517,7 +512,7 @@ class Product extends VNClass {
 		if (other instanceof Sum) return -other.cmp(this) as CompareResult;
 		// If other > ord then -1, if other === ord then 1, or other < ord then 1
 		if (other instanceof Phi) return this.ord.cmp(other) === -1 ? -1 : 1;
-		if(!(other instanceof Product)) throw new TypeError(`Invalid Product.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
+		if(!(other instanceof Product)) throw new TypeError(`Invalid Product.prototype.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 		// Handle comparison with other Products
 		const oc = this.ord.cmp(other.ord);
 		if (oc !== 0) return oc;
@@ -604,20 +599,17 @@ function phiVN(...args: PhiArg[]){
 			args[i] instanceof VNClass &&
 			!(args[i] instanceof Atom)
 		)
-			args[i].standardize();
+			args[i] = args[i].toStandardized();
 	return new Phi(...args);
 }
-class Phi extends VNClass {
+export class Phi extends VNClass {
 	args: PhiArg[];
 	/**
-	 * Class to handle sums of terms, terms are either Sum, Product or Phi
-	 * @param {...Sum|Product|Phi}
+	 * Class to handle sums of terms, terms are either Sum, Product, Phi, or number
 	 */
 	constructor(...args: PhiArg[]) {
 		super();
 		this.args = args;
-
-		this.standardize();
 	}
 
 	static fromValue_noStandard(...args: PhiArg[]) {
@@ -630,8 +622,8 @@ class Phi extends VNClass {
 		return t;
 	}
 
-	standardize() {
-		
+	toStandardized() {
+		return phiVN(...this.args);
 	}
 
 	cmp(other: ConcreteVNSource): CompareResult {
@@ -647,7 +639,7 @@ class Phi extends VNClass {
 		 * or
 		 * (X is lexicographically greater than Y and φ(X) is greater than the sum of args in Y)
 		 */
-		if(!(other instanceof Phi)) throw new TypeError(`Invalid Phi.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
+		if(!(other instanceof Phi)) throw new TypeError(`Invalid Phi.prototype.cmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 		const sumthis = sumVN(...this.args);
 		const sumother = sumVN(...other.args);
 		if (
@@ -664,10 +656,14 @@ class Phi extends VNClass {
 			return -1;
 		return 0;
 	}
-
+	/**
+	 * is `this` fixed point of a?
+	 * 
+	 * Substitute the argument '\_' of `a` with `this`, then check if the result is equal to `this`
+	 * 
+	 * (example) if a === [1,0,0,'_',0] -> returns true iff phi(1,0,0,this,0) === this
+	 */
 	isFixedPoint(a: (PhiArg|'_')[]) {
-		//is `this` fixed point of a?
-		//(example) if a === [1,0,0,'_',0] -> returns true iff phi(1,0,0,this,0) === this
 		const index = a.indexOf("_");
 		for (let i = index + 1; i < a.length; i++) if (a[i] !== 0) return false;
 		if (a.length > this.args.length) return false;
@@ -695,7 +691,7 @@ class Phi extends VNClass {
 	lexcmp(other: string | Phi) {
 		if (typeof other === "string") {
 			const fsother = Parser.fromString(other);
-			if(!(fsother instanceof Phi)) throw TypeError(`Invalid Phi().lexcmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
+			if(!(fsother instanceof Phi)) throw TypeError(`Invalid Phi.prototype.lexcmp argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 			other = fsother;
 		}
 		// In lexicographical comparison, longer = bigger
@@ -737,16 +733,17 @@ class Phi extends VNClass {
 		if (other instanceof Product)
 			return productVN(this.mul(other.ord) as Phi, other.mult);
 		let t: Phi = this.clone();
-		if(!(other instanceof Phi)) throw new TypeError(`Invalid Phi().mul argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
+		if(!(other instanceof Phi)) throw new TypeError(`Invalid Phi.prototype.mul argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 		if (this.args.length > 1) t = Phi.fromValue_noStandard(this);
 		if (other.args.length > 1) other = Phi.fromValue_noStandard(other);
 		t.args[0] = Atom.wrapIfNumber(t.args[0]);
-		if(!(other instanceof Phi)) throw new TypeError(`Invalid Phi().mul argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
+		if(!(other instanceof Phi)) throw new TypeError(`Invalid Phi.prototype.mul argument: ${other} ([[prototype]]: ${Object.getPrototypeOf(other)})`);
 		other.args[0]=Atom.wrapIfNumber(other.args[0]);
 		return phiVN(t.args[0].add(other.args[0]) as PhiArg);
 	}
 
 	pow(other: ConcreteVNSource): ConcreteVN {
+		//console.log("Phi.pow start")
 		if (typeof other === "string") other = Parser.fromString(other);
 		if (other instanceof Sum) {
 			let p: ConcreteVN = new Atom(1);
@@ -763,7 +760,8 @@ class Phi extends VNClass {
 		if (typeof t.args[0] === "number") t.args[0] = new Atom(t.args[0]);
 		//TODO: figure out how to organize class hierachy (if it should even exist)
 		t.args[0] = t.args[0].mul(other);
-		t.standardize();
+		t = t.toStandardized();
+		//console.log("Phi.pow end")
 		return t;
 	}
 
@@ -801,7 +799,7 @@ class Phi extends VNClass {
 	}
 
 	toHTML(): string {
-		// same reason as Phi.toMixed
+		// same reason as Phi.prototype.toMixed
 		const t_args = [...this.args] as Exclude<PhiArg,number>[]
 		for (const i in t_args)
 			if (typeof t_args[i] === "number") t_args[i] = new Atom(t_args[i]);
@@ -831,17 +829,13 @@ class Phi extends VNClass {
 		return "&phi;(" + t_args.map(e => e.toHTML()) + ")";
 	}
 
-	/*[Symbol.iterator]() {
+	[Symbol.iterator]() {
 		return this.args[Symbol.iterator]();
-	}*/
+	}
 }
-const ParserTYPES = Object.freeze({
-	LITERAL: 0,
-	IDENTIFIER: 1,
-	OPERATOR: 2,
-} as const);
 
 type Operator = '+'|'*'|'^'
+
 /*class ParserTokenC<T extends TokenType> {
 	type: T;
 	value: T extends 2? Operator:string;
@@ -863,8 +857,12 @@ type ParserToken ={
 	args: number
 }
 
-const Parser = {
-	TYPES: ParserTYPES,
+export const Parser = {
+	TYPES: Object.freeze({
+		LITERAL: 0,
+		IDENTIFIER: 1,
+		OPERATOR: 2,
+	} as const),
 
 	isNumber(char: string) {
 		return /[0-9w]/.test(char);
@@ -902,6 +900,7 @@ const Parser = {
 			}
 			if (type === 0) numbuff.push(char);
 			else if (type === 1) idbuff.push(char);
+			//type === 2 (Operator)
 			else tokens.push({type:Parser.TYPES.OPERATOR, value:char as Operator,args:0});
 		}
 		if (numbuff.length > 0)
@@ -1013,15 +1012,15 @@ const Parser = {
 		}
 		return output;
 	},
-
+	fixUnaryRegExp: /(e|z|n|G)((\w+\([^,]+\))|[^\+\*\^\(\,][^\+\*\^\,]*[^\+\*\^\)\,]?)/g,
 	fixUnary(str: string) {
 		while (
-			/(e|z|n|G)((\w+\([^,]+\))|[^\+\*\^\(\,][^\+\*\^\,]*[^\+\*\^\)\,]?)/g.test(
+			Parser.fixUnaryRegExp.test(
 				str
 			)
 		)
 			str = str.replace(
-				/(e|z|n|G)((\w+\([^,]+\))|[^\+\*\^\(\,][^\+\*\^\,]*[^\+\*\^\)\,]?)/g,
+				Parser.fixUnaryRegExp,
 				function (_match, c1, c2) {
 					return `${c1}(${c2})`;
 				}
@@ -1041,7 +1040,7 @@ const Parser = {
 				else {
 					const f = parseFloat(token.value);
 					if (!Number.isNaN(f)) args.push(new Atom(f));
-					else throw "Unknown token:" + token.value;
+					else throw new ParserError(`Unknown token: ${token.value}`);
 				}
 			} else if (token.type === Parser.TYPES.OPERATOR) {
 				const a1 = args.pop();
@@ -1066,7 +1065,7 @@ const Parser = {
 				else throw new ParserError(`Invalid IDENTIFIER ${token.value}`);
 			}
 		}
-		return args[0];
+		return args[0]??new Atom(0);
 	},
 
 	handleParens(str: string, sub = false, replace: string | boolean = false) {
@@ -1212,4 +1211,5 @@ const VebleNum = Object.assign(function VebleNum(input: unknown) {
 	Feferman_Schutte_Ordinal: new Phi(1, 0, 0),
 	Ackermann: new Phi(1, 0, 0, 0),
 });
+
 export default VebleNum;

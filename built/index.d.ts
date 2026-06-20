@@ -1,7 +1,7 @@
 export type CompareResult = -1 | 0 | 1;
 declare abstract class VNClass {
     static MAX_TERMS: number;
-    abstract standardize(): void;
+    abstract toStandardized(): ConcreteVN;
     clone<T extends VNClass>(this: T): T;
     add(other: number | ConcreteVN): ConcreteVN;
     abstract mul(other: ConcreteVNSource): ConcreteVN;
@@ -21,14 +21,14 @@ declare abstract class VNClass {
 type ConcreteVN = Atom<number> | Sum | Product | Phi;
 type ConcreteVNSource = ConcreteVN | number | string;
 declare function sumVN(...addends: (number | ConcreteVN)[]): ConcreteVN;
-declare class Atom<V extends number> extends VNClass {
+export declare class Atom<V extends number> extends VNClass {
     value: V;
     /**
      * Class to handle storing independent numbers
      * @param value - The value of the atom
      */
     constructor(value: Atom<V> | V);
-    standardize(): void;
+    toStandardized(): Atom<number>;
     static wrapIfNumber<T extends ConcreteVN>(v: number | T): Atom<number> | T;
     static unwrap<T extends number>(a: Atom<T> | T): T;
     add(other: ConcreteVNSource): ConcreteVN;
@@ -39,7 +39,7 @@ declare class Atom<V extends number> extends VNClass {
     toMixed(): string;
     toHTML(): string;
 }
-declare class Sum extends VNClass {
+export declare class Sum extends VNClass {
     addends: (number | Product | Phi)[] & {
         0: Product | Phi;
     };
@@ -49,7 +49,7 @@ declare class Sum extends VNClass {
     constructor(...args: (number | Product | Phi)[] & {
         0: Product | Phi;
     });
-    standardize(): void;
+    toStandardized(): ConcreteVN;
     cmp(other: ConcreteVNSource): CompareResult;
     mul(other: ConcreteVNSource): ConcreteVN;
     pow(other: ConcreteVNSource): ConcreteVN;
@@ -60,7 +60,7 @@ declare class Sum extends VNClass {
     [Symbol.iterator](): ArrayIterator<number | Product | Phi>;
 }
 declare function productVN(ord: number | Atom<number> | Product | Phi, mult: number | Atom<number>): Atom<number> | Product | Phi;
-declare class Product extends VNClass {
+export declare class Product extends VNClass {
     ord: Phi;
     mult: number;
     /**
@@ -69,7 +69,7 @@ declare class Product extends VNClass {
      * @param mult - Finite multiplier
      */
     constructor(ord: Phi, mult: number);
-    standardize(): void;
+    toStandardized(): ConcreteVN;
     cmp(other: ConcreteVNSource): CompareResult;
     mul(other: ConcreteVNSource): ConcreteVN;
     pow(other: ConcreteVNSource): ConcreteVN;
@@ -80,16 +80,22 @@ declare class Product extends VNClass {
 type PhiArg = number | Atom<number> | Sum | Product | Phi;
 declare function phiVN(...args: PhiArg[]): Atom<number> | Phi;
 declare function phiVN(...args: [0]): Atom<1>;
-declare class Phi extends VNClass {
+export declare class Phi extends VNClass {
     args: PhiArg[];
     /**
-     * Class to handle sums of terms, terms are either Sum, Product or Phi
-     * @param {...Sum|Product|Phi}
+     * Class to handle sums of terms, terms are either Sum, Product, Phi, or number
      */
     constructor(...args: PhiArg[]);
     static fromValue_noStandard(...args: PhiArg[]): Phi;
-    standardize(): void;
+    toStandardized(): Atom<number> | Phi;
     cmp(other: ConcreteVNSource): CompareResult;
+    /**
+     * is `this` fixed point of a?
+     *
+     * Substitute the argument '\_' of `a` with `this`, then check if the result is equal to `this`
+     *
+     * (example) if a === [1,0,0,'_',0] -> returns true iff phi(1,0,0,this,0) === this
+     */
     isFixedPoint(a: (PhiArg | '_')[]): boolean;
     lexcmp(other: string | Phi): 0 | 1 | -1;
     mul(other: ConcreteVNSource): ConcreteVN;
@@ -97,7 +103,44 @@ declare class Phi extends VNClass {
     toString(): string;
     toMixed(): string;
     toHTML(): string;
+    [Symbol.iterator](): ArrayIterator<PhiArg>;
 }
+type Operator = '+' | '*' | '^';
+type ParserToken = {
+    type: 0 | 1;
+    value: string;
+    args: number;
+} | {
+    type: 2;
+    value: Operator;
+    args: number;
+};
+export declare const Parser: {
+    TYPES: Readonly<{
+        readonly LITERAL: 0;
+        readonly IDENTIFIER: 1;
+        readonly OPERATOR: 2;
+    }>;
+    isNumber(char: string): boolean;
+    isOperator(char: string): char is Operator;
+    tokenize(str: string): ParserToken[];
+    ASSOC: {
+        readonly "+": "left";
+        readonly "*": "left";
+        readonly "^": "right";
+    };
+    PREC: {
+        readonly "+": 2;
+        readonly "*": 3;
+        readonly "^": 4;
+    };
+    parse(tokens: ParserToken[]): ParserToken[];
+    fixUnaryRegExp: RegExp;
+    fixUnary(str: string): string;
+    fromString(str: string): ConcreteVN;
+    handleParens(str: string, sub?: boolean, replace?: string | boolean): string | true;
+    needsParens(str: string, sub?: boolean): boolean;
+};
 declare const VebleNum: ((input: unknown) => ConcreteVN) & {
     fromString: (str: string) => ConcreteVN;
     clone<T>(input: T): T;
