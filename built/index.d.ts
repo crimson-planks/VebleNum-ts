@@ -1,4 +1,10 @@
 export type CompareResult = -1 | 0 | 1;
+export declare class VN_TooManyTermsError extends Error {
+    constructor();
+}
+export declare class ParserError extends Error {
+    constructor(message?: string);
+}
 declare abstract class VNClass {
     static MAX_TERMS: number;
     abstract toStandardized(): ConcreteVN;
@@ -18,8 +24,8 @@ declare abstract class VNClass {
     eq(other: ConcreteVNSource): boolean;
     neq(other: ConcreteVNSource): boolean;
 }
-type ConcreteVN = Atom<number> | Sum | Product | Phi;
-type ConcreteVNSource = ConcreteVN | number | string;
+export type ConcreteVN = Atom<number> | Sum | Product | Phi;
+export type ConcreteVNSource = ConcreteVN | number | string;
 declare function sumVN(...addends: (number | ConcreteVN)[]): ConcreteVN;
 export declare class Atom<V extends number> extends VNClass {
     value: V;

@@ -1,5 +1,5 @@
 "use strict";
-class VN_TooManyTermsError extends Error {
+export class VN_TooManyTermsError extends Error {
     //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error#custom_error_types
     constructor() {
         super("Too many terms, reduce exponent");
@@ -11,7 +11,7 @@ class VN_TooManyTermsError extends Error {
     }
 }
 ;
-class ParserError extends Error {
+export class ParserError extends Error {
     constructor(message) {
         super(message);
         if ("captureStackTrace" in Error && Error.captureStackTrace instanceof Function) {
@@ -1041,7 +1041,7 @@ export const Parser = {
                 const a1 = args.pop();
                 const a2 = args.pop();
                 if (a1 === undefined || a2 === undefined)
-                    throw new ParserError(`invalid OPERATOR ${token.value}`);
+                    throw new ParserError(`Invalid OPERATOR ${token.value}`);
                 if (token.value === "+")
                     args.push(a2.add(a1));
                 else if (token.value === "*")

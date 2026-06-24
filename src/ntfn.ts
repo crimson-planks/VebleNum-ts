@@ -16,12 +16,7 @@ type nonTransfiniteNumber<T> = {
 
 /** Check if a value has the nonTransfiniteNumberArithmetic protocol*/
 export function isNonTransfiniteNumber(x: unknown): x is nonTransfiniteNumber<unknown>{
-	return x!==null&&typeof x==='object' && nonTransfiniteNumberArithmeticSymbol in x
-	       && x[nonTransfiniteNumberArithmeticSymbol]!==null&&typeof x[nonTransfiniteNumberArithmeticSymbol]==='object'
-		   && 'add' in x[nonTransfiniteNumberArithmeticSymbol] && typeof x[nonTransfiniteNumberArithmeticSymbol].add==='function'
-		   && 'mul' in x[nonTransfiniteNumberArithmeticSymbol] && typeof x[nonTransfiniteNumberArithmeticSymbol].mul==='function'
-		   && 'pow' in x[nonTransfiniteNumberArithmeticSymbol] && typeof x[nonTransfiniteNumberArithmeticSymbol].pow==='function'
-		   && 'cmp' in x[nonTransfiniteNumberArithmeticSymbol] && typeof x[nonTransfiniteNumberArithmeticSymbol].cmp==='function';
+	return x!==null&&typeof x==='object' && nonTransfiniteNumberArithmeticSymbol in x;
 }
 declare global{
 	interface Number{

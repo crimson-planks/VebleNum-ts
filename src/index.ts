@@ -1,7 +1,7 @@
 "use strict";
 
 export type CompareResult = -1 | 0 | 1;
-class VN_TooManyTermsError extends Error{
+export class VN_TooManyTermsError extends Error{
 	//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error#custom_error_types
 	constructor(){
 		super("Too many terms, reduce exponent");
@@ -12,7 +12,7 @@ class VN_TooManyTermsError extends Error{
 		this.name='VN_TooManyTermsError'
 	}
 };
-class ParserError extends Error{
+export class ParserError extends Error{
 	constructor(message?: string){
 		super(message);
 		if("captureStackTrace" in Error&&Error.captureStackTrace instanceof Function){
@@ -30,7 +30,6 @@ function setType<P extends object | null>(obj:{},type: {prototype: P}): asserts 
 	Object.setPrototypeOf(obj, type.prototype);
 }
 abstract class VNClass {
-
 	static MAX_TERMS = 200;
 	
 	abstract toStandardized(): ConcreteVN;
@@ -119,9 +118,8 @@ abstract class VNClass {
 function isConcreteVN(x: unknown): x is ConcreteVN{
 	return x instanceof Atom || x instanceof Sum || x instanceof Product || x instanceof Phi;
 }
-
-type ConcreteVN = Atom<number> | Sum | Product | Phi;
-type ConcreteVNSource = ConcreteVN | number | string;
+export type ConcreteVN = Atom<number> | Sum | Product | Phi;
+export type ConcreteVNSource = ConcreteVN | number | string;
 /* reason for making sum, product, phi standalone functions
    It's unintuitive and harder to type check when calling `new Sum()` and getting something that isn't Sum
 */
@@ -1045,7 +1043,7 @@ export const Parser = {
 			} else if (token.type === Parser.TYPES.OPERATOR) {
 				const a1 = args.pop();
 				const a2 = args.pop();
-				if(a1===undefined||a2===undefined) throw new ParserError(`invalid OPERATOR ${token.value}`);
+				if(a1===undefined||a2===undefined) throw new ParserError(`Invalid OPERATOR ${token.value}`);
 				if (token.value === "+") args.push(a2.add(a1));
 				else if (token.value === "*") args.push(a2.mul(a1));
 				else if (token.value === "^") args.push(a2.pow(a1));
@@ -1087,7 +1085,7 @@ export const Parser = {
 const VebleNum = Object.assign(function VebleNum(input: unknown) {
 	if (typeof input === "number") return new Atom(input);
 	if (isConcreteVN(input)) return input.clone();
-	if (typeof input==='string'){
+	if (typeof input === 'string'){
 		return Parser.fromString(input.replace(/\s/g, ""));
 	}
 	return new Atom(0);
