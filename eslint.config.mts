@@ -9,6 +9,7 @@ export default defineConfig([
   {
     rules: {
       'no-useless-escape': 'off',
+      "no-debugger": 'off',
       '@typescript-eslint/no-explicit-any': "warn",
       "@typescript-eslint/no-unused-expressions": 'off',
       "@typescript-eslint/no-empty-object-type": "off"

@@ -4,14 +4,65 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>VebleNum-ts</title>
-		<script src="./built/index.js" type="module"></script>
+		<script src="./built/VebleNum.js" type="module"></script>
 		<script src="./s.js" type="module"></script>
 	</head>
 	<body>
 		<h1>VebleNum-ts</h1>
 		Expression: <input id="exp" /><br />
-		<button onclick="solve()">Solve!</button><br />
-		<p id="error" style="display: none;">An error occured while parsing expression: </p>
-		<span id="out"></span>
+		<button onclick="solve()">Solve!</button>
+		<button onclick="x_add_1()">x+1</button>
+		<button onclick="x_add_w()">x+&omega;</button>
+		<button onclick="x_mul_w()">x*&omega;</button>
+		<button onclick="w_mul_x()">&omega;*x</button>
+		<button onclick="x_pow_2()">x<sup>2</sup></button>
+		<button onclick="f2_pow_x()">2<sup>x</sup></button>
+		<button onclick="w_pow_x()">&omega;<sup>x</sup></button>
+		<br />
+		<p id="error-title" style="display: none;">An error occured while parsing expression: 
+			<span id="error"></span>
+		</p>
+		<div id="out">x = <span id="outval">0</span></div>
+		<table id="ord-info">
+			<thead>
+				<tr>
+					<th>Plain Text</th>
+					<th>HTML</th>
+					<th>Meaning</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<th>w</th>
+					<th>&omega;</th>
+					<th>First Transfinite Ordinal</th>
+				</tr>
+				<tr>
+					<th>e0</th>
+					<th>&epsilon;<sub>0</sub></th>
+					<th>Smallest &alpha; such that &omega;<sup>&alpha;</sup> = &alpha;</th>
+				</tr>
+				<tr>
+					<th>z0</th>
+					<th>&zeta;<sub>0</sub></th>
+					<th>Smallest &alpha; such that &epsilon;<sub>&alpha;</sub> = &alpha;</th>
+				</tr>
+				<tr>
+					<th>n0</th>
+					<th>&eta;<sub>0</sub></th>
+					<th>Smallest &alpha; such that &zeta;<sub>&alpha;</sub> = &alpha;</th>
+				</tr>
+				<tr>
+					<th>G0</th>
+					<th>&Gamma;<sub>0</sub></th>
+					<th>Smallest &alpha; such that &phi;(&alpha;,0) = &alpha;</th>
+				</tr>
+			</tbody>
+		</table>
 	</body>
 </html>
+<style>
+#out{
+	font-size: 2em;
+}
+</style>
